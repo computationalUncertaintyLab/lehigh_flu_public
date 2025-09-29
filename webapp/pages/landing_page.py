@@ -260,7 +260,7 @@ def show():
                     ticks=True
                 )
             )
-            mode = st.get_option("theme.base")
+            mode           = st.get_option("theme.base")
             points_color   = "black" if mode=="light" else "white"
             forecast_color = "blue"  if mode=="light" else "red"
             
@@ -348,12 +348,12 @@ def show():
                         y=alt.Y("p", title="", scale = alt.Scale(domain=[0,np.nanmax(observations.p)])),
                         tooltip=["season", "season_week", "value"]
                     )
-               band = alt.Chart(forecast_for_perc_values).mark_area(opacity=0.5, color=forecast_color).encode(
+               band = alt.Chart(forecast_for_perc_values).mark_area(opacity=0.5, color="lightblue").encode(
                         x  = alt.X("season_week:Q"),
                         y  = alt.Y("q100:Q"),  
                         y2 = alt.Y2("q900:Q")
                     )
-               line = alt.Chart(forecast_for_perc_values).mark_line(color=forecast_color, strokeWidth=2).encode(
+               line = alt.Chart(forecast_for_perc_values).mark_line(color="darkblue", strokeWidth=2).encode(
                         x="season_week:Q",
                         y="q500:Q"   # median column (rename '0.500' to 'q500' earlier)
                     )
