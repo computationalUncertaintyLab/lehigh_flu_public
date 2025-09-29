@@ -47,19 +47,29 @@ forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True)
 #--observed data
 observed_data = {}
 
-ili_data_file = "./analysis_data/influenza_like_illness.csv"
-ili           = pd.read_csv(ili_data_file)
-ili["value"] = [3 if x<3 and x>0 else x for x in ili.ILI] 
+def grab_ili_data():
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
+    WEBAPP = ROOT.parent 
 
+    ili_data_file = WEBAPP / "analysis_data" / "influenza_like_illness.csv"
+    ili           = pd.read_csv(ili_data_file)
+    ili["value"] = [3 if x<3 and x>0 else x for x in ili.ILI]
 
-observed_data["ILI"] = ili
+    return ili
+observed_data["ILI"] = grab_ili_data()
 
+def grab_flu_data():
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
+    WEBAPP = ROOT.parent 
 
-flu_cases_data_file = "./analysis_data/weekly_data.csv"
-flu_cases           = pd.read_csv(flu_cases_data_file)
-flu_cases["value"] = [3 if x<3 and x>0 else x for x in flu_cases.pos_cases] 
+    flu_data_file = WEBAPP / "analysis_data" / "weekly_data.csv"
+    flu           = pd.read_csv(flu_data_file)
+    flu["value"] = [3 if x<3 and x>0 else x for x in flu.pos_cases]
+    return flu
 
-observed_data["Flu Cases"] = flu_cases
+observed_data["Flu Cases"] = grab_flu_data()
 
 st.set_page_config(
     # Title and icon for the browser's tab bar:
