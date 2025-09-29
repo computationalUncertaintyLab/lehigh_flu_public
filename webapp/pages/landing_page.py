@@ -13,7 +13,7 @@ import streamlit as st
 from glob import glob
 
 import altair as alt
-
+from pathlib import Path
 import json
 
 #--temporal forecast datasets
@@ -384,7 +384,11 @@ def show():
             with cols[0].container(border=True, height="stretch"):
                 st.markdown('''
                 ### Contact information''')
-                st.image("./complogo.001.png")
+
+                ROOT   = Path(__file__).resolve().parent  # folder containing landing_page.py
+                WEBAPP = ROOT.parent
+                st.image( WEBAPP / "complogo.001.png")
+                
                 st.markdown('''
                 [Computational Uncertainty Lab](https://compuncertlab.org/)   
                 [PI (Prof McAndrew)](https://compuncertlab.org/members/mcandrew/)   
