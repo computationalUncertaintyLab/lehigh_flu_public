@@ -14,6 +14,7 @@ from glob import glob
 
 import altair as alt
 
+import json
 
 #--temporal forecast datasets
 
@@ -201,7 +202,15 @@ def show():
 
             #--forecast data absolute values------------
             target_forecast_data     = forecast_data[target]["temporal"]
-            from_week_to_season_week = pd.read_csv("../analysis_data/from_week_to_season_week.csv")
+            
+            def grab_week_to_season_data():
+                from pathlib import Path
+                ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
+                WEBAPP = ROOT.parent
+                d = pd.read_csv( WEBAPP / "analysis_data"/"from_week_to_season_week.csv")
+                return d
+            from_week_to_season_week = grab_week_to_season_data()
+
             target_forecast_data     = target_forecast_data.merge(from_week_to_season_week, on = ["MMWR_YR","MMWR_WK"], how="left")
 
             forecast                 = pd.pivot_table(index="season_week",columns = ["percentile"], values = ["percentile_value_cases"], data = target_forecast_data)
@@ -238,7 +247,6 @@ def show():
 
             forecast_for_perc_values = pd.concat([this_week_data,forecast])
 
-            import json
             lab_df       = from_week_to_season_week.loc[from_week_to_season_week.season==THISSEASON]
             label_map    = {sw: dt for sw, dt in zip(lab_df["season_week"], lab_df["end_date"])}
             label_map_js = json.dumps(label_map)
