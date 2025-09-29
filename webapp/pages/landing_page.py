@@ -260,19 +260,22 @@ def show():
                     ticks=True
                 )
             )
-
+            mode = st.get_option("theme.base")
+            points_color   = "black" if mode=="light" else "white"
+            forecast_color = "blue"  if mode=="light" else "red"
+            
             with cols[0].container(border=True, height="stretch"):
-                    points = alt.Chart(observations).mark_circle(size=40, color="black",opacity=0.10).encode(
+                    points = alt.Chart(observations).mark_circle(size=40, color=points_color,opacity=0.10).encode(
                         x=x_axis,
                         y=alt.Y("value", title="Number of ILI cases" if target == "ILI" else "Number of flu cases", scale = alt.Scale(domain=[0,np.nanmax(observations["value"])])),
                         tooltip=["season", "season_week", "value"]
                     )
-                    points_this_season = alt.Chart(this_season_observations).mark_circle(size=40, color="blue").encode(
+                    points_this_season = alt.Chart(this_season_observations).mark_circle(size=40, color=forecast_color).encode(
                         x=x_axis,
                         y=alt.Y("value", title="", scale = alt.Scale(domain=[0,np.nanmax(observations["value"])])),
                         tooltip=["season", "season_week", "value"]
                     )
-                    band = alt.Chart(forecast_for_abs_values).mark_area(opacity=0.5).encode(
+                    band = alt.Chart(forecast_for_abs_values).mark_area(opacity=0.5,color=forecast_color).encode(
                         x=x_axis,
                         y="q100:Q",
                         y2="q900:Q",
@@ -291,7 +294,7 @@ def show():
                         legend='"95% PI"'
                     )
 
-                    line = alt.Chart(forecast_for_abs_values).mark_line(strokeWidth=2).encode(
+                    line = alt.Chart(forecast_for_abs_values).mark_line(strokeWidth=2,color=forecast_color).encode(
                         x=x_axis,
                         y="q500:Q",
                         stroke=alt.Stroke(
@@ -311,7 +314,7 @@ def show():
 
                     df_vline = pd.DataFrame({"season_week": [time_data["season_week"]], "label": ["Current week"]})
                     vline = alt.Chart(df_vline).mark_rule(
-                        color="black",
+                        color=points_color,
                         strokeWidth=2,
                         baseline="top"
 
@@ -323,7 +326,7 @@ def show():
                             dx=-5,             # horizontal offset from the line
                             dy=-10,              # vertical offset
                             fontWeight="bold",
-                            color="black",
+                            color=points_color,
                             baseline="top"
                         ).encode(
                             x=x_axis,
@@ -335,29 +338,29 @@ def show():
                     st.altair_chart((points + points_this_season +band+line+vline+vtext).properties(width="container", height=300).interactive())
 
             with cols[1].container(border=True, height="stretch"):
-               points = alt.Chart(observations).mark_circle(size=40, color="black",opacity=0.10).encode(
+               points = alt.Chart(observations).mark_circle(size=40, color=points_color,opacity=0.10).encode(
                         x=alt.X("season_week:Q", title=""),
                         y=alt.Y("p", title="% positive", scale = alt.Scale(domain=[0,np.nanmax(observations.p)])),
                         tooltip=["season", "season_week", "value"]
                     )
-               points_this_season = alt.Chart(this_season_observations).mark_circle(size=40, color="blue").encode(
+               points_this_season = alt.Chart(this_season_observations).mark_circle(size=40, color=forecast_color).encode(
                         x=alt.X("season_week:Q", title=""),
                         y=alt.Y("p", title="", scale = alt.Scale(domain=[0,np.nanmax(observations.p)])),
                         tooltip=["season", "season_week", "value"]
                     )
-               band = alt.Chart(forecast_for_perc_values).mark_area(opacity=0.5, color="lightblue").encode(
+               band = alt.Chart(forecast_for_perc_values).mark_area(opacity=0.5, color=forecast_color).encode(
                         x  = alt.X("season_week:Q"),
                         y  = alt.Y("q100:Q"),  
                         y2 = alt.Y2("q900:Q")
                     )
-               line = alt.Chart(forecast_for_perc_values).mark_line(color="darkblue", strokeWidth=2).encode(
+               line = alt.Chart(forecast_for_perc_values).mark_line(color=forecast_color, strokeWidth=2).encode(
                         x="season_week:Q",
                         y="q500:Q"   # median column (rename '0.500' to 'q500' earlier)
                     )
                df_vline = pd.DataFrame({"season_week": [time_data["season_week"]], "label": ["Current week"]})
 
                vline = alt.Chart(df_vline).mark_rule(
-                   color="black",
+                   color=points_color,
                    strokeWidth=2,
                    baseline="top"
 
@@ -369,7 +372,7 @@ def show():
                    dx=-5,             # horizontal offset from the line
                    dy=-10,              # vertical offset
                    fontWeight="bold",
-                   color="black",
+                   color=points_color,
                    baseline="top"
                ).encode(
                     x=x_axis,
