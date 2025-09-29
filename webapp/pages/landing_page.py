@@ -205,7 +205,7 @@ def show():
             
             def grab_week_to_season_data():
                 from pathlib import Path
-                ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
+                ROOT   = Path(__file__).resolve().parent  # folder containing landing_page.py
                 WEBAPP = ROOT.parent
                 d = pd.read_csv( WEBAPP / "analysis_data"/"from_week_to_season_week.csv")
                 return d
