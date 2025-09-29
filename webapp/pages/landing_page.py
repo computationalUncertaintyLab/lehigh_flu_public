@@ -21,9 +21,9 @@ import altair as alt
 def grab_forecast_data(target,above=False):
 
     if above:
-       forecast_files = glob("./forecasts/tempo/{:s}/*above_median*".format(target))
+       forecast_files = glob("../forecasts/tempo/{:s}/*above_median*".format(target))
     else:
-        forecast_files  = glob("./forecasts/tempo/{:s}/*tempo_forecast_{:s}*".format(target,target))
+        forecast_files  = glob("../forecasts/tempo/{:s}/*tempo_forecast_{:s}*".format(target,target))
     latest_file         = max(forecast_files, key=os.path.getmtime)
     forecast_data   = pd.read_csv(latest_file)
     forecast_data   = forecast_data.rename(columns = {"MMWR_week":"MMWR_WK"})
