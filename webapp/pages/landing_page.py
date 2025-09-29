@@ -20,10 +20,17 @@ import altair as alt
 
 def grab_forecast_data(target,above=False):
 
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
+    WEBAPP = ROOT.parent 
+
     if above:
-       forecast_files = glob("../forecasts/tempo/{:s}/*above_median*".format(target))
+        folder = WEBAPP /"forecasts" / "tempo" / target
+        forecast_files = list(folder.glob("*above_median*"))
     else:
-        forecast_files  = glob("../forecasts/tempo/{:s}/*tempo_forecast_{:s}*".format(target,target))
+        folder = WEBAPP /"forecasts" / "tempo" / target
+        forecast_files = list(folder.glob("*tempo_forecast_{:s}*".format(target)))
+        
     latest_file         = max(forecast_files, key=os.path.getmtime)
     forecast_data   = pd.read_csv(latest_file)
     forecast_data   = forecast_data.rename(columns = {"MMWR_week":"MMWR_WK"})
