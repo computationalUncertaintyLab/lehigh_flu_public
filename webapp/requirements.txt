@@ -1,0 +1,9 @@
+streamlit>=1.28.0
+pandas>=1.5.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+Pillow>=8.0.0
+scienceplots
+matplotlib_tufte @ git+https://github.com/ninivert/matplotlib_tufte.git
+epiweeks>=2.1.4
