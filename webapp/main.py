@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # Import page modules
-from pages import landing_page
+from pages import detailed_look, quick_look
 
 def main():
     """Main app with multi-page navigation."""
@@ -21,12 +21,14 @@ def main():
     # Page selection
     page = st.sidebar.selectbox(
         "Navigate to:",
-        ["🏠 Landing Page"]
+        ["Quick Look","Detailed Look"]
     )
     
     # Route to appropriate page
-    if page == "🏠 Landing Page":
-        landing_page.show()
+    if page == "Detailed Look":
+        detailed_look.show()
+    elif page =="Quick Look":
+        quick_look.show()
 
 if __name__ == "__main__":
     main()
