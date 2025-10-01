@@ -18,18 +18,20 @@ import json
 
 #--temporal forecast datasets
 
+THISSEASON="2025/26"
+def grab_forecast_data(target=None,above=False,THISSEASON=None):
 
-def grab_forecast_data(target,above=False):
+    this_season = THISSEASON.replace("/","_")
 
     from pathlib import Path
     ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
     WEBAPP = ROOT.parent 
 
     if above:
-        folder = WEBAPP /"forecasts" / "tempo" / target
+        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
         forecast_files = list(folder.glob("*above_median*"))
     else:
-        folder = WEBAPP /"forecasts" / "tempo" / target
+        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
         forecast_files = list(folder.glob("*tempo_forecast_{:s}*".format(target)))
         
     latest_file         = max(forecast_files, key=os.path.getmtime)
@@ -38,12 +40,12 @@ def grab_forecast_data(target,above=False):
     return forecast_data
 
 forecast_data  = {"ILI":{},"Flu Cases":{}}
-forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili")
-forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu")
+forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili", above=False, THISSEASON=THISSEASON)
+forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu", above=False, THISSEASON=THISSEASON)
 
 #--Above median dataset
-forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True)
-forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True)
+forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True, THISSEASON=THISSEASON)
+forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True, THISSEASON=THISSEASON)
 
 #--observed data
 observed_data = {}
@@ -79,7 +81,6 @@ st.set_page_config(
     # Make the content take up the width of the page:
     layout="wide",
 )
-
 
 def display_todays_data(target,cols, observed_data,THISSEASON):
     from epiweeks import Week
@@ -148,7 +149,7 @@ def collect_time_data(observations,THISSEASON):
 
 def show():
     
-    THISSEASON="2025/26"
+
 
     #--APP--------------------------------------------------------------------------------------------
     alt.renderers.set_embed_options(actions={"export": True, "source": False, "compiled": False})
