@@ -477,7 +477,7 @@ def show():
                 [Ava Delauro](https://compuncertlab.org/members/delauro_ava/)   
                 [Eric Shapiro](https://compuncertlab.org/members/shapiro_eric/)   
                 [Holden Engelhardt](https://compuncertlab.org/members/engelhardt_holden/)
-                [Elmira Stepanyan](https://compuncertlab.org/members/stepanyan_elmira/)
+                [Elmira Stepanyan](https://compuncertlab.org/members/stepanyan_elmira/)   
                 [Lela Boermeester](https://compuncertlab.org/members/boermeester_lela/)
                 ''')
 
