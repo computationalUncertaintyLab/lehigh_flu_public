@@ -99,8 +99,10 @@ def show():
             st.markdown("## ")
 
             ili_observations = observed_data["ILI"]
-            ili_most_recent  = ili_observations.loc[ (ili_observations.season==THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-1)]
-            ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-1)] 
+            ili_most_recent  = ili_observations.loc[ (ili_observations.season==THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)]
+            print(ili_most_recent)
+            
+            ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)] 
 
             if np.all( np.isnan(ili_past_weeks.value.values) ):
                 alert0 = "LOW:"
@@ -140,8 +142,8 @@ def show():
             st.markdown("## ")
 
             flu_observations = observed_data["Flu Cases"]
-            flu_most_recent  = flu_observations.loc[ (flu_observations.season==THISSEASON) &  (flu_observations.season_week == time_data["season_week"]-1)]
-            flu_past_weeks   = flu_observations.loc[ (flu_observations.season!=THISSEASON) &  (flu_observations.season_week == time_data["season_week"]-1)]
+            flu_most_recent  = flu_observations.loc[ (flu_observations.season==THISSEASON) &  (flu_observations.season_week == time_data["season_week"]-0)]
+            flu_past_weeks   = flu_observations.loc[ (flu_observations.season!=THISSEASON) &  (flu_observations.season_week == time_data["season_week"]-0)]
 
             if np.all( np.isnan(flu_past_weeks.value.values) ):
                 alert0 = "LOW:"
