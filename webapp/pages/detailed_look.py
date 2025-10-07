@@ -1,5 +1,16 @@
 #mcandrew
 
+import streamlit as st
+# st.set_page_config(
+#     # Title and icon for the browser's tab bar:
+#     page_title="Lehigh Flucast",
+#     page_icon="XXX",
+#     # Make the content take up the width of the page:
+#     layout="wide",
+# )
+
+
+
 import os
 import sys
 import numpy as np
@@ -8,79 +19,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import streamlit as st
+
 
 from glob import glob
 
 import altair as alt
 from pathlib import Path
 import json
+from epiweeks import Week
+
+import scipy.stats
 
 #--temporal forecast datasets
-
-THISSEASON="2025/26"
-def grab_forecast_data(target=None,above=False,THISSEASON=None):
-
-    this_season = THISSEASON.replace("/","_")
-
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    if above:
-        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
-        forecast_files = list(folder.glob("*above_median*"))
-    else:
-        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
-        forecast_files = list(folder.glob("*tempo_forecast_{:s}*".format(target)))
-        
-    latest_file         = max(forecast_files, key=os.path.getmtime)
-    forecast_data   = pd.read_csv(latest_file)
-    forecast_data   = forecast_data.rename(columns = {"MMWR_week":"MMWR_WK"})
-    return forecast_data
-
-forecast_data  = {"ILI":{},"Flu Cases":{}}
-forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili", above=False, THISSEASON=THISSEASON)
-forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu", above=False, THISSEASON=THISSEASON)
-
-#--Above median dataset
-forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True, THISSEASON=THISSEASON)
-forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True, THISSEASON=THISSEASON)
-
-#--observed data
-observed_data = {}
-
-def grab_ili_data():
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    ili_data_file = WEBAPP / "analysis_data" / "influenza_like_illness.csv"
-    ili           = pd.read_csv(ili_data_file)
-    ili["value"] = [3 if x<3 and x>0 else x for x in ili.ILI]
-
-    return ili
-observed_data["ILI"] = grab_ili_data()
-
-def grab_flu_data():
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    flu_data_file = WEBAPP / "analysis_data" / "weekly_data.csv"
-    flu           = pd.read_csv(flu_data_file)
-    flu["value"] = [3 if x<3 and x>0 else x for x in flu.pos_cases]
-    return flu
-
-observed_data["Flu Cases"] = grab_flu_data()
-
-st.set_page_config(
-    # Title and icon for the browser's tab bar:
-    page_title="Lehigh Flucast",
-    page_icon="XXX",
-    # Make the content take up the width of the page:
-    layout="wide",
-)
 
 def display_todays_data(target,cols, observed_data,THISSEASON):
     from epiweeks import Week
@@ -130,26 +80,12 @@ def prob_box(target, cols, forecast_row, date):
             down_bar = make_bar("blue",height=2)
             st.image(down_bar, width=32)
             st.markdown( '{:.0f}% chance <span style="color:blue; font-weight:bold;">decrease</span>'.format(100*(1-above_median_value)) ,unsafe_allow_html=True)
- 
-
-from epiweeks import Week
-
-def collect_time_data(observations,THISSEASON):
-    subset = observations.loc[observations.season==THISSEASON]
-    subset = subset.dropna()
-    last_row = subset.iloc[-1]
-
-    time_data = {"MMWR_YR"     :last_row["MMWR_YR"]
-                 ,"MMWR_WK"    :last_row["MMWR_WK"]
-                 ,"end_date"   :last_row["end_date"]
-                 ,"start_date" : last_row["start_date"]
-                 ,"season"     :last_row["season"]
-                 ,"season_week":last_row["season_week"]}
-    return time_data
 
 def show():
-    
-
+    observed_data = st.session_state["observed_data"]
+    forecast_data = st.session_state["forecast_data"]
+    time_data     = st.session_state["time_data"]
+    THISSEASON    = st.session_state["SEASON"]
 
     #--APP--------------------------------------------------------------------------------------------
     alt.renderers.set_embed_options(actions={"export": True, "source": False, "compiled": False})
@@ -171,8 +107,6 @@ def show():
 
         observations = observed_data[target]
         forecasts    = forecast_data[target]
-
-        time_data = collect_time_data(observations,THISSEASON)
 
         #--4 WEEK ahead forecasts--------------------------------------------------------------------
         with st.container(horizontal=True, gap="medium"):

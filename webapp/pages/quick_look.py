@@ -1,5 +1,15 @@
 #mcandrew
 
+# st.set_page_config(
+#     # Title and icon for the browser's tab bar:
+#     page_title="Lehigh Flucast",
+#     page_icon="XXX",
+#     # Make the content take up the width of the page:
+#     layout="wide",
+# )
+
+
+
 import os
 import sys
 import numpy as np
@@ -14,74 +24,11 @@ from glob import glob
 
 import altair as alt
 from pathlib import Path
+
+from epiweeks import Week
+
 import json
 import scipy.stats
-
-#--temporal forecast datasets
-THISSEASON="2025/26"
-
-def grab_forecast_data(target=None,above=False,THISSEASON=None):
-
-    this_season = THISSEASON.replace("/","_")
-    
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    if above:
-        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
-        forecast_files = list(folder.glob("*above_median*"))
-    else:
-        folder = WEBAPP /"forecasts" / this_season / "tempo" / target
-        forecast_files = list(folder.glob("*tempo_forecast_{:s}*".format(target)))
-        
-    latest_file         = max(forecast_files, key=os.path.getmtime)
-    forecast_data   = pd.read_csv(latest_file)
-    forecast_data   = forecast_data.rename(columns = {"MMWR_week":"MMWR_WK"})
-    return forecast_data
-
-forecast_data  = {"ILI":{},"Flu Cases":{}}
-forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili", above=False, THISSEASON=THISSEASON)
-forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu", above=False, THISSEASON=THISSEASON)
-
-#--Above median dataset
-forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True, THISSEASON=THISSEASON)
-forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True, THISSEASON=THISSEASON)
-
-#--observed data
-observed_data = {}
-
-def grab_ili_data():
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    ili_data_file = WEBAPP / "analysis_data" / "influenza_like_illness.csv"
-    ili           = pd.read_csv(ili_data_file)
-    ili["value"] = [3 if x<3 and x>0 else x for x in ili.ILI]
-
-    return ili
-observed_data["ILI"] = grab_ili_data()
-
-def grab_flu_data():
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parent  # folder containing landing_page.py
-    WEBAPP = ROOT.parent 
-
-    flu_data_file = WEBAPP / "analysis_data" / "weekly_data.csv"
-    flu           = pd.read_csv(flu_data_file)
-    flu["value"] = [3 if x<3 and x>0 else x for x in flu.pos_cases]
-    return flu
-
-observed_data["Flu Cases"] = grab_flu_data()
-
-st.set_page_config(
-    # Title and icon for the browser's tab bar:
-    page_title="Lehigh Flucast",
-    page_icon="XXX",
-    # Make the content take up the width of the page:
-    layout="wide",
-)
 
 
 def display_todays_data(target,cols, observed_data,THISSEASON):
@@ -134,48 +81,63 @@ def prob_box(target, cols, forecast_row, date):
             st.markdown( '{:.0f}% chance <span style="color:blue; font-weight:bold;">decrease</span>'.format(100*(1-above_median_value)) ,unsafe_allow_html=True)
  
 
-from epiweeks import Week
-
-def collect_time_data(observations,THISSEASON):
-    subset = observations.loc[observations.season==THISSEASON]
-    subset = subset.dropna()
-    last_row = subset.iloc[-1]
-
-    next_four_weeks = []
-    w = Week(last_row["MMWR_YR"],last_row["MMWR_WK"])+1
-    for _ in range(0,3+1):
-        next_four_weeks.append(w.week)
-        w = w+1
-    
-    time_data = {"MMWR_YR"     :last_row["MMWR_YR"]
-                 ,"MMWR_WK"    :last_row["MMWR_WK"]
-                 ,"end_date"   :last_row["end_date"]
-                 ,"start_date" : last_row["start_date"]
-                 ,"season"     :last_row["season"]
-                 , "next_four_weeks":next_four_weeks
-                 ,"season_week":last_row["season_week"]}
-    
-    return time_data
-
-import scipy.stats
-
 def show():
-    
-    
+
+    observed_data = st.session_state["observed_data"]
+    forecast_data = st.session_state["forecast_data"]
+    time_data     = st.session_state["time_data"]
+    THISSEASON    = st.session_state["SEASON"]
 
     #--APP--------------------------------------------------------------------------------------------
     alt.renderers.set_embed_options(actions={"export": True, "source": False, "compiled": False})
 
     with st.container(horizontal=False, gap="medium"):
         #--SELECTION OF TARGET------------------------------------------------------------------------
-        cols = st.columns([1], gap="small",width=850)
+        cols = st.columns(2, gap="small",width=850)
+
         with cols[0]:
             st.markdown("## ")
 
             ili_observations = observed_data["ILI"]
-            time_data        = collect_time_data(ili_observations,THISSEASON)
             ili_most_recent  = ili_observations.loc[ (ili_observations.season==THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-1)]
             ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-1)] 
+
+            if np.all( np.isnan(ili_past_weeks.value.values) ):
+                alert0 = "LOW:"
+                alert1 = "In the past, no ILI diagnoses were made on this week."
+            else:
+                perc = np.mean( ili_most_recent.value.values < ili_observations.value.values )
+                
+                if perc <0.50:
+                    alert0 = "LOW:"
+                    alert1 = "Compared to past data, the number of ILI diagnoses is small"
+                elif perc>=0.50 and perc <=0.75:
+                    alert0 = "MEDIUM:"
+                    alert1 = "Compared to past data, the number of ILI diagnoses this week is larger than normal"
+                elif perc >0.75:
+                    alert0 = "HIGH:"
+                    alert1 = "Compared to past data, the number of ILI diagnoses this week is <b>much</b> larger than normal"
+                
+            st.markdown(
+                """
+                <div style="background-color: lightblue; padding: 20px; border-radius: 10px;">
+                <h3>This week ILI is {alert0:s}</h3> 
+                <p> This week there are <b>{ili:d} reported cases</b> of Influenza-like illness.
+                {alert1:s}. The most recent week of data is week {season_week:d}, ending on  {date:s}, for the {season:s} season.</p>
+                
+                </div>
+                """.format( alert0       = alert0
+                            ,alert1      = alert1
+                            ,date        = time_data["end_date"]
+                            ,season      = time_data["season"]
+                            ,season_week = time_data["season_week"]
+                            ,ili         = int(ili_most_recent.value.values)
+                            )
+                ,unsafe_allow_html=True
+            )
+            
+        with cols[1]:
+            st.markdown("## ")
 
             flu_observations = observed_data["Flu Cases"]
             flu_most_recent  = flu_observations.loc[ (flu_observations.season==THISSEASON) &  (flu_observations.season_week == time_data["season_week"]-1)]
@@ -185,7 +147,9 @@ def show():
                 alert0 = "LOW:"
                 alert1 = "In the past, no influenza tests were administered on this week."
             else:
-                perc = scipy.stats.norm( np.nanmean(flu_past_weeks.value.values), np.nanstd(flu_past_weeks.value.values) ).cdf( float(flu_most_recent.value.values))
+                #perc = scipy.stats.norm( np.nanmean(flu_past_weeks.value.values), np.nanstd(flu_past_weeks.value.values) ).cdf( float(flu_most_recent.value.values))
+                perc = np.mean( flu_most_recent.value.values < flu_observations.value.values )
+                
                 if perc <0.50:
                     alert0 = "LOW:"
                     alert1 = "Compared to past data, the number of positive flu tests is small"
@@ -200,118 +164,295 @@ def show():
                 """
                 <div style="background-color: lightblue; padding: 20px; border-radius: 10px;">
                 <h3>This week Flu is {alert0:s}</h3> 
-                <p> {alert1:s} The most recent week of data is week {season_week:d}, ending on  {date:s}, for the {season:s} season.</p>
-                <p> This week there are <b>{ili:d} reported cases</b> of Influenza-like illness and <b>{flu:d} cases </b> of lab-confirmed flu.</p>
+                <p> This week there are <b>{flu:d} cases </b> of lab-confirmed flu.
+                 {alert1:s} The most recent week of data is week {season_week:d}, ending on  {date:s}, for the {season:s} season.</p>
                 </div>
-                """.format( alert0=alert0
-                            ,alert1=alert1
-                            ,date = time_data["end_date"]
-                            ,season = time_data["season"]
+                """.format( alert0       = alert0
+                            ,alert1      = alert1
+                            ,date        = time_data["end_date"]
+                            ,season      = time_data["season"]
                             ,season_week = time_data["season_week"]
-                            ,ili  =int(ili_most_recent.value.values)
-                            ,flu =int(flu_most_recent.value.values))
+                            ,flu         = int(flu_most_recent.value.values))
                 ,unsafe_allow_html=True
             )
 
-
         #--4 WEEK ahead forecasts--------------------------------------------------------------------
-        with st.container(horizontal=True, gap="medium"):
-            cols = st.columns([1], gap="small",width=850)
+        with st.container(horizontal=False):
+            cols = st.columns([1,1,2])   # adjust widths as you like
+
             with cols[0]:
+                st.markdown("● **Historical average**", unsafe_allow_html=True)
 
-                target="ILI"
-                next_four_weeks = forecast_data[target]["above"]
-                ili_next_four_weeks = next_four_weeks.loc[ (next_four_weeks.week>time_data["season_week"]+1) & (next_four_weeks.week<=time_data["season_week"]+4+1) ]
+            with cols[1]:
+                st.markdown("<span style='color:blue'>●</span> **Predicted median**", unsafe_allow_html=True)
 
-                target="Flu Cases"
-                next_four_weeks = forecast_data[target]["above"]
-                flu_next_four_weeks = next_four_weeks.loc[ (next_four_weeks.week>time_data["season_week"]+1) & (next_four_weeks.week<=time_data["season_week"]+4+1) ]
-
-                dates = [ (Week(time_data["MMWR_YR"],time_data["MMWR_WK"])+int(x)).enddate().strftime("%Y-%m-%d") for x in np.arange(1,4+1) ]
-
-                ili_name = "Chance > {:d} ILI cases".format(int(ili_most_recent.value.values))
-                flu_name =  "Chance > {:d} Flu cases".format(int(flu_most_recent.value.values))
+            with cols[2]:
+                st.markdown(
+                    "<span style='display:inline-block; width:20px; height:12px; background-color:blue;'></span> **80% uncertainty**",
+                    unsafe_allow_html=True
+                )
 
 
-                #--MEDIAN FORECASTS
-                ili_forecasts    = forecast_data["ILI"]["temporal"]
-                flu_forecasts    = forecast_data["Flu Cases"]["temporal"]
+        with st.container(horizontal=True, gap="medium"):
+            cols = st.columns(2, gap="small",width=850,border=True)
+            
+            with cols[0]:
+                ILI_forecasts = forecast_data["ILI"]["temporal"]
+                ILI_forecasts = ILI_forecasts.loc[ILI_forecasts.MMWR_WK.isin(time_data["next_four_weeks"])]
+                ILI_forecasts = ILI_forecasts.loc[ ILI_forecasts["percentile"].isin([0.10,0.50,0.90]) ]
 
-                median_ili_forecasts = ili_forecasts.loc[ ili_forecasts["percentile"] == 0.50]
-                median_ili_forecasts = median_ili_forecasts.loc[ median_ili_forecasts.MMWR_WK.isin(time_data["next_four_weeks"]) ] 
-
-                median_flu_forecasts = flu_forecasts.loc[ flu_forecasts["percentile"] == 0.50]
-                median_flu_forecasts = median_flu_forecasts.loc[ median_flu_forecasts.MMWR_WK.isin(time_data["next_four_weeks"]) ]
+                ILI_data      = observed_data["ILI"]
+                ILI_data      = ILI_data.loc[ILI_data.MMWR_WK.isin(time_data["next_four_weeks"])]
 
 
-                #--WHERE DOES THE MEDIAN FALL COMPARED TO PAST YEARS?
+                st.markdown("### ILI • 4-week panel")
 
-                ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.MMWR_WK.isin(time_data["next_four_weeks"])) ]
-                alerts_ili           = []
-                for i,mmwr_week in enumerate(time_data["next_four_weeks"]):
-                    past_season_data = ili_past_weeks.loc[ ili_past_weeks.MMWR_WK == mmwr_week ]
+                # ---------------------------
+                # 2) FILTER to current season’s 4 weeks (40..43) and build PI table
+                # ---------------------------
+                TARGET_SEASON = "2025/26"
+                TARGET_SEMESTER = "Fall"
+                WEEKS = [40, 41, 42, 43]
 
-                    mu = np.nanmean(past_season_data.value.values)
-                    sd = np.nanstd(past_season_data.value.values)
+                fc4 = ILI_forecasts.rename(columns={"percentile_value_cases":"value"})
 
-                    fcast = float(median_ili_forecasts.iloc[i].percentile_value_cases)
-                    perc = scipy.stats.norm(mu,sd).cdf( fcast )
+                # Pivot percentiles 0.1, 0.5, 0.9 -> lo80, median, hi80
+                fc_wide = (
+                    fc4.pivot_table(index="MMWR_WK", columns="percentile", values="value")
+                       .rename(columns={0.1:"lo80", 0.5:"median", 0.9:"hi80"})
+                       .reset_index()
+                )
 
-                    if perc <0.50:
-                        alerts_ili.append("LOW")
-                    elif perc>=0.50 and perc <=0.75:
-                        alerts_ili.append("MEDIUM")
-                    elif perc >0.75:
-                        alerts_ili.append("HIGH")
-
-                flu_past_weeks   = flu_observations.loc[ (flu_observations.season!=THISSEASON) &  (flu_observations.MMWR_WK.isin(time_data["next_four_weeks"])) ]
-                alerts_flu           = []
-                for i,mmwr_week in enumerate(time_data["next_four_weeks"]):
-                    past_season_data = flu_past_weeks.loc[ flu_past_weeks.MMWR_WK == mmwr_week ]
-                    fcast = float(median_flu_forecasts.iloc[i].percentile_value_cases)
-
-                    if np.all(np.isnan(past_season_data["value"])):
-                        alerts_flu.append("LOW")
-                    elif len(past_season_data.value.dropna()) <3:
-                        mu = np.nanmean(past_season_data.value.values)
-                        if fcast > mu:
-                            alerts_flu.append("Above average")
-                        else:
-                            alerts_flu.append("Below average")
-                    else:
-                        mu = np.nanmean(past_season_data.value.values)
-                        sd = np.nanstd(past_season_data.value.values)
-
-                        
-                        perc = scipy.stats.norm(mu,sd).cdf( fcast )
-
-                        if perc <0.50:
-                            alerts_flu.append("LOW")
-                        elif perc>=0.50 and perc <=0.75:
-                            alerts_flu.append("MEDIUM")
-                        elif perc >0.75:
-                            alerts_flu.append("HIGH")
-                print(alerts_flu)
-
-                display_table = { "Week":[]
-                                  ,"Predicted ILI":[]
-                                  , ili_name:[]
-                                  ,"ILI Status":[]
-                                  ,"Predicted Flu":[]
-                                  , flu_name:[]
-                                  , "Flu Status":[]}
-
-                display_table["Week"] = dates
-                display_table["Predicted ILI"] = [ "{:d}".format(int(x)) for x in median_ili_forecasts.percentile_value_cases.values]
-                display_table["Predicted Flu"] = ["{:d}".format(int(x)) for x in median_flu_forecasts.percentile_value_cases.values]
+                # Add neat labels (row order is 40,41,42,43)
+                fc_wide = fc_wide.sort_values("MMWR_WK").reset_index(drop=True)
+                fc_wide["horizon"] = fc_wide.index  # 0..3
+                week_enddates = list(time_data["next_four_week_enddates"])
+                fc_wide["row_label"] = fc_wide["horizon"].map(lambda h: f"This wk ( ending on {week_enddates[h]})" if h == 0 else f"+{h} wk ({week_enddates[h]})")
+ 
                 
-                display_table[ili_name]  = [ "{:d}".format(int(x))+"%" for x in 100*ili_next_four_weeks.above_median.values]
-                display_table[flu_name]  = [ "{:d}".format(int(x))+"%" for x in 100*flu_next_four_weeks.above_median.values ]
+                fc_wide["week_label"] = "MMWR " + fc_wide["MMWR_WK"].astype(str)
 
-                display_table["ILI Status"] = alerts_ili
-                display_table["Flu Status"] = alerts_flu
+                # ---------------------------
+                # 3) Historical dots for the SAME week number (across years), excluding NaNs
+                # ---------------------------
+                hist = (
+                    ILI_data.loc[ILI_data["MMWR_WK"].isin(WEEKS), ["MMWR_YR","MMWR_WK","value"]]
+                          .dropna(subset=["value"])
+                          .rename(columns={"value":"hist_value"})
+                )
 
-                st.table( pd.DataFrame(display_table).set_index("Week") )
+                # Attach horizon/labels to history by week number
+                hist_aug = hist.merge(fc_wide[["MMWR_WK","horizon","row_label","week_label"]], on="MMWR_WK", how="inner")
+
+                hist_mean = (
+                    hist_aug.groupby(["MMWR_WK","row_label","week_label","horizon"], as_index=False)
+                    .agg(hist_mean=("hist_value","mean"))
+                )
+                hist_mean["y0"] = 0
+
+                print(hist_aug)
+
+                # Also add y0 to forecast rows
+                fc_plot = fc_wide.assign(y0=0)
+
+                # ---------------------------
+                # 4) Build 4 separate rows and vconcat — no facet
+                # ---------------------------
+                HIST_DOT_SIZE = 70
+                MEDIAN_SIZE   = 70
+                PI_THICKNESS  = 6
+                ROW_HEIGHT    = 48
+
+                # Shared x-domain
+                xmin = min(0, float(min(hist_mean["hist_mean"].min() if len(hist_mean) else 0,
+                                        fc_plot["lo80"].min())))
+                xmax = float(max(hist_mean["hist_mean"].max() if len(hist_mean) else 1,
+                                 fc_plot["hi80"].max()))
+                pad = 0.06*(xmax - xmin) if xmax > xmin else 1.0
+                x_domain = [xmin - pad, xmax + pad]
+
+                def row_layer(mmwr_wk: int, row_lab: str):
+                    # filter to one row’s week
+                    fc_row   = fc_plot.loc[fc_plot["MMWR_WK"] == mmwr_wk].copy()
+                    hist_row = hist_mean.loc[hist_mean["MMWR_WK"] == mmwr_wk].copy()
+
+                    # safety: enforce single row per side
+                    if len(fc_row) != 1:
+                        fc_row = fc_row.drop_duplicates(subset=["MMWR_WK"]).head(1)
+                    if len(hist_row) != 1:
+                        hist_row = hist_row.groupby(["MMWR_WK"], as_index=False).agg(hist_mean=("hist_mean","mean"))
+                        hist_row["y0"] = 0
+                        hist_row["week_label"] = f"MMWR {mmwr_wk}"
+
+                    # encodings (shared x scale)
+                    x_lo  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi = alt.X2("hi80:Q")
+                    x_med = alt.X("median:Q",  title=None, scale=alt.Scale(domain=x_domain))
+                    x_mu  = alt.X("hist_mean:Q", title="ILI cases", scale=alt.Scale(domain=x_domain))
+                    y0    = alt.Y("y0:Q", axis=None)
+
+                    # layers
+                    pi_bar = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4).encode(
+                        x=x_lo, x2=x2_hi, y=y0,
+                        tooltip=["week_label:N","lo80:Q","hi80:Q"]
+                    )
+
+                    med_dot = alt.Chart(fc_row).mark_point(size=MEDIAN_SIZE, color="blue", filled=True).encode(
+                        x=x_med, y=y0,
+                        tooltip=["week_label:N","median:Q"]
+                    )
+
+                    hist_dot = alt.Chart(hist_row).mark_point(size=HIST_DOT_SIZE, color="black", filled=True).encode(
+                        x=x_mu, y=y0,
+                        tooltip=["week_label:N","hist_mean:Q"] if "week_label" in hist_row.columns else [alt.TooltipValue(f"MMWR {mmwr_wk}")]
+                    )
+
+                    # row label on the left as a subtitle
+                    return (pi_bar + hist_dot + med_dot).properties(
+                        height=ROW_HEIGHT,
+                        title=alt.TitleParams(text=row_lab, anchor="start", fontSize=12, dy=-6)
+                    )
+
+                # Build rows in the correct order
+                rows = []
+                for _, r in fc_wide.sort_values("horizon").iterrows():
+                    rows.append(row_layer(int(r["MMWR_WK"]), r["row_label"]))
+                chart = alt.vconcat(*rows, spacing=8).resolve_scale(x="shared")
+
+                st.altair_chart(chart, use_container_width=True)
+
+
+            with cols[1]:
+
+                FLU_forecasts = forecast_data["Flu Cases"]["temporal"]
+                FLU_forecasts = FLU_forecasts.loc[FLU_forecasts.MMWR_WK.isin(time_data["next_four_weeks"])]
+                FLU_forecasts = FLU_forecasts.loc[ FLU_forecasts["percentile"].isin([0.10,0.50,0.90]) ]
+
+                FLU_data      = observed_data["Flu Cases"]
+                FLU_data      = FLU_data.loc[FLU_data.MMWR_WK.isin(time_data["next_four_weeks"])]
+
+
+                st.markdown("### FLU • 4-week panel")
+
+                # ---------------------------
+                # 2) FILTER to current season’s 4 weeks (40..43) and build PI table
+                # ---------------------------
+                TARGET_SEASON = "2025/26"
+                TARGET_SEMESTER = "Fall"
+                WEEKS = [40, 41, 42, 43]
+
+                fc4 = FLU_forecasts.rename(columns={"percentile_value_cases":"value"})
+
+                # Pivot percentiles 0.1, 0.5, 0.9 -> lo80, median, hi80
+                fc_wide = (
+                    fc4.pivot_table(index="MMWR_WK", columns="percentile", values="value")
+                       .rename(columns={0.1:"lo80", 0.5:"median", 0.9:"hi80"})
+                       .reset_index()
+                )
+
+                # Add neat labels (row order is 40,41,42,43)
+                fc_wide = fc_wide.sort_values("MMWR_WK").reset_index(drop=True)
+                fc_wide["horizon"] = fc_wide.index  # 0..3
+
+                week_enddates = list(time_data["next_four_week_enddates"])
+                fc_wide["row_label"] = fc_wide["horizon"].map(lambda h: f"This wk (ending on {week_enddates[h]})" if h == 0 else f"+{h} wk ({week_enddates[h]})")
+
+                fc_wide["week_label"] = "MMWR " + fc_wide["MMWR_WK"].astype(str)
+
+                # ---------------------------
+                # 3) Historical dots for the SAME week number (across years), excluding NaNs
+                # ---------------------------
+                hist = (
+                    FLU_data.loc[FLU_data["MMWR_WK"].isin(WEEKS), ["MMWR_YR","MMWR_WK","value"]]
+                          .dropna(subset=["value"])
+                          .rename(columns={"value":"hist_value"})
+                )
+
+                # Attach horizon/labels to history by week number
+                hist_aug = hist.merge(fc_wide[["MMWR_WK","horizon","row_label","week_label"]], on="MMWR_WK", how="inner")
+
+                #print(hist_aug)
+                
+                hist_mean = (
+                    hist_aug.groupby(["MMWR_WK","row_label","week_label","horizon"], as_index=False)
+                    .agg(hist_mean=("hist_value","mean"))
+                )
+                hist_mean["y0"] = 0
+
+                # Also add y0 to forecast rows
+                fc_plot = fc_wide.assign(y0=0)
+
+                # ---------------------------
+                # 4) Build 4 separate rows and vconcat — no facet
+                # ---------------------------
+                HIST_DOT_SIZE = 70
+                MEDIAN_SIZE   = 70
+                PI_THICKNESS  = 6
+                ROW_HEIGHT    = 48
+
+                # Shared x-domain
+                xmin = min(0, float(min(hist_mean["hist_mean"].min() if len(hist_mean) else 0,
+                                        fc_plot["lo80"].min())))
+                xmax = float(max(hist_mean["hist_mean"].max() if len(hist_mean) else 1,
+                                 fc_plot["hi80"].max()))
+                pad = 0.06*(xmax - xmin) if xmax > xmin else 1.0
+                x_domain = [xmin - pad, xmax + pad]
+
+                def row_layer(mmwr_wk: int, row_lab: str):
+                    # filter to one row’s week
+                    fc_row   = fc_plot.loc[fc_plot["MMWR_WK"] == mmwr_wk].copy()
+                    hist_row = hist_mean.loc[hist_mean["MMWR_WK"] == mmwr_wk].copy()
+
+                    # safety: enforce single row per side
+                    if len(fc_row) != 1:
+                        fc_row = fc_row.drop_duplicates(subset=["MMWR_WK"]).head(1)
+                    if len(hist_row) != 1:
+                        hist_row = hist_row.groupby(["MMWR_WK"], as_index=False).agg(hist_mean=("hist_mean","mean"))
+                        hist_row["y0"] = 0
+                        hist_row["week_label"] = f"MMWR {mmwr_wk}"
+
+                    # encodings (shared x scale)
+                    x_lo  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi = alt.X2("hi80:Q")
+                    x_med = alt.X("median:Q",  title=None, scale=alt.Scale(domain=x_domain))
+                    x_mu  = alt.X("hist_mean:Q", title="ILI cases", scale=alt.Scale(domain=x_domain))
+                    y0    = alt.Y("y0:Q", axis=None)
+
+                    # layers
+                    pi_bar = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4).encode(
+                        x=x_lo, x2=x2_hi, y=y0,
+                        tooltip=["week_label:N","lo80:Q","hi80:Q"]
+                    )
+
+                    med_dot = alt.Chart(fc_row).mark_point(size=MEDIAN_SIZE, color="blue", filled=True).encode(
+                        x=x_med, y=y0,
+                        tooltip=["week_label:N","median:Q"]
+                    )
+
+                    hist_dot = alt.Chart(hist_row).mark_point(size=HIST_DOT_SIZE, color="black", filled=True).encode(
+                        x=x_mu, y=y0,
+                        tooltip=["week_label:N","hist_mean:Q"] if "week_label" in hist_row.columns else [alt.TooltipValue(f"MMWR {mmwr_wk}")]
+                    )
+
+                    # row label on the left as a subtitle
+                    return (pi_bar + hist_dot + med_dot).properties(
+                        height=ROW_HEIGHT,
+                        title=alt.TitleParams(text=row_lab, anchor="start", fontSize=12, dy=-6)
+                    )
+
+                # Build rows in the correct order
+                rows = []
+                for _, r in fc_wide.sort_values("horizon").iterrows():
+                    rows.append(row_layer(int(r["MMWR_WK"]), r["row_label"]))
+                chart = alt.vconcat(*rows, spacing=8).resolve_scale(x="shared")
+
+                st.altair_chart(chart, use_container_width=True)
+
+
+                
+
+
+                
 
         with st.container(horizontal=False, gap="medium"):
             cols = st.columns([1,1], gap="medium", width=850)
