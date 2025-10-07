@@ -156,7 +156,7 @@ def show():
             forecast                 = forecast.loc[forecast.season_week>time_data["season_week"]]
 
             
-            this_week_data = int( this_season_observations.loc[ this_season_observations.season_week==time_data["season_week"]-1,"value"].values)
+            this_week_data = int( this_season_observations.loc[ this_season_observations.season_week==time_data["season_week"]-0,"value"].values)
             this_week_data = pd.DataFrame({"season_week":[time_data["season_week"]]
                                            ,"q100":[this_week_data]
                                            ,"q900":[this_week_data]
@@ -174,7 +174,7 @@ def show():
             forecast = forecast.rename(columns = {"0.025":"q100","0.975":"q900","0.500":"q500"})
             forecast = forecast.loc[forecast.season_week>time_data["season_week"]]
 
-            this_week_data = float(subset_observations.loc[ (subset_observations.season==THISSEASON) & (subset_observations.season_week==time_data["season_week"]-1),"p"].values)
+            this_week_data = float(subset_observations.loc[ (subset_observations.season==THISSEASON) & (subset_observations.season_week==time_data["season_week"]-0),"p"].values)
             this_week_data = pd.DataFrame({"season_week":[time_data["season_week"]]
                                            ,"q100":[this_week_data]
                                            ,"q900":[this_week_data]
