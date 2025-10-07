@@ -100,7 +100,6 @@ def show():
 
             ili_observations = observed_data["ILI"]
             ili_most_recent  = ili_observations.loc[ (ili_observations.season==THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)]
-            print(ili_most_recent)
             
             ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)] 
 
@@ -214,7 +213,7 @@ def show():
                 # ---------------------------
                 TARGET_SEASON = "2025/26"
                 TARGET_SEMESTER = "Fall"
-                WEEKS = [40, 41, 42, 43]
+                WEEKS = time_data["next_four_weeks"]#[40, 41, 42, 43]
 
                 fc4 = ILI_forecasts.rename(columns={"percentile_value_cases":"value"})
 
@@ -341,7 +340,7 @@ def show():
                 # ---------------------------
                 TARGET_SEASON = "2025/26"
                 TARGET_SEMESTER = "Fall"
-                WEEKS = [40, 41, 42, 43]
+                WEEKS = time_data["next_four_weeks"]#[40, 41, 42, 43]
 
                 fc4 = FLU_forecasts.rename(columns={"percentile_value_cases":"value"})
 
