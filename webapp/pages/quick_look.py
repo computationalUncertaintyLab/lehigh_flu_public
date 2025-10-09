@@ -92,6 +92,11 @@ def show():
     alt.renderers.set_embed_options(actions={"export": True, "source": False, "compiled": False})
 
     with st.container(horizontal=False, gap="medium"):
+
+        cols = st.columns(1, gap="small",width=850)
+        with cols[0]:
+            st.video("./videos/2025_26/FLU CREW 10-7-25.mov")
+        
         #--SELECTION OF TARGET------------------------------------------------------------------------
         cols = st.columns(2, gap="small",width=850)
 
@@ -476,7 +481,7 @@ def show():
                 [Ava Baker](https://compuncertlab.org/members/baker_ava/)   
                 [Ava Delauro](https://compuncertlab.org/members/delauro_ava/)   
                 [Eric Shapiro](https://compuncertlab.org/members/shapiro_eric/)   
-                [Holden Engelhardt](https://compuncertlab.org/members/engelhardt_holden/)   
+                [Holden Engelhardt](https://compuncertlab.org/members/engelhardt_holden/)     
                 [Elmira Stepanyan](https://compuncertlab.org/members/stepanyan_elmira/)   
                 [Lela Boermeester](https://compuncertlab.org/members/boermeester_lela/)
                 ''')
