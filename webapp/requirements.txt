@@ -8,3 +8,4 @@ scienceplots
 matplotlib_tufte @ git+https://github.com/ninivert/matplotlib_tufte.git
 epiweeks>=2.1.4
 scipy
+boto3
