@@ -89,6 +89,9 @@ def show():
     from main import initialize_session_data
     initialize_session_data()
 
+    import boto3
+    from botocore.exceptions import NoCredentialsError
+
     observed_data = st.session_state["observed_data"]
     forecast_data = st.session_state["forecast_data"]
     time_data     = st.session_state["time_data"]
@@ -101,7 +104,24 @@ def show():
 
         cols = st.columns(1, gap="small",width=850)
         with cols[0]:
-            st.video("./videos/2025_26/FLU CREW 10-7-25.mov")
+            s3 = boto3.client('s3')
+            bucket_name = "flucasts202526"
+            video_key = "FLU CREW 10-7-25.mov"
+            
+            try:
+                # Get the video object from S3
+                response = s3.get_object(Bucket=bucket_name, Key=video_key)
+                video_bytes = response['Body'].read()
+
+                # Display the video in Streamlit
+                st.video(video_bytes)
+
+            except NoCredentialsError:
+                st.error("AWS credentials not found. Please configure your credentials.")
+            except Exception as e:
+                st.error(f"Error retrieving video from S3: {e}")
+            
+            #st.video("https://flucasts202526.s3.us-east-1.amazonaws.com/videos/2025_26/FLU%20CREW%2010-7-25.mov")
         
         #--SELECTION OF TARGET------------------------------------------------------------------------
         cols = st.columns(2, gap="small",width=850)
