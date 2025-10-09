@@ -81,33 +81,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+def initialize_session_data():
+    """Load data into session state if not already loaded."""
+    if "observed_data" not in st.session_state:
+        #--temporal forecast datasets
+        THISSEASON="2025/26"
 
+        forecast_data  = {"ILI":{},"Flu Cases":{}}
+        forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili", above=False, THISSEASON=THISSEASON)
+        forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu", above=False, THISSEASON=THISSEASON)
 
+        #--Above median dataset
+        forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True, THISSEASON=THISSEASON)
+        forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True, THISSEASON=THISSEASON)
+
+        #--observed data
+        observed_data = {}
+        observed_data["ILI"]       = grab_ili_data()
+        observed_data["Flu Cases"] = grab_flu_data()
+
+        #--collect temporal information about this week
+        time_data = collect_time_data(observed_data["ILI"],THISSEASON)
+
+        st.session_state["observed_data"] = observed_data
+        st.session_state["forecast_data"] = forecast_data
+        st.session_state["SEASON"]        = THISSEASON
+        st.session_state["time_data"]     = time_data
 
 def main():
-    #--temporal forecast datasets
-    THISSEASON="2025/26"
-
-    forecast_data  = {"ILI":{},"Flu Cases":{}}
-    forecast_data["ILI"]["temporal"]       = grab_forecast_data("ili", above=False, THISSEASON=THISSEASON)
-    forecast_data["Flu Cases"]["temporal"] = grab_forecast_data("flu", above=False, THISSEASON=THISSEASON)
-
-    #--Above median dataset
-    forecast_data["ILI"]["above"]       = grab_forecast_data("ili",above=True, THISSEASON=THISSEASON)
-    forecast_data["Flu Cases"]["above"] = grab_forecast_data("flu",above=True, THISSEASON=THISSEASON)
-
-    #--observed data
-    observed_data = {}
-    observed_data["ILI"]       = grab_ili_data()
-    observed_data["Flu Cases"] = grab_flu_data()
-
-    #--collect temporal information about this week
-    time_data = collect_time_data(observed_data["ILI"],THISSEASON)
-
-    st.session_state["observed_data"] = observed_data
-    st.session_state["forecast_data"] = forecast_data
-    st.session_state["SEASON"]        = THISSEASON
-    st.session_state["time_data"]     = time_data
+    initialize_session_data()
     
     # Sidebar navigation
     st.sidebar.title("🦠 Flu Forecast Dashboard")

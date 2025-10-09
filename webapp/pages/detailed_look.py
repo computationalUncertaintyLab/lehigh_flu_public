@@ -82,6 +82,13 @@ def prob_box(target, cols, forecast_row, date):
             st.markdown( '{:.0f}% chance <span style="color:blue; font-weight:bold;">decrease</span>'.format(100*(1-above_median_value)) ,unsafe_allow_html=True)
 
 def show():
+    # Ensure data is loaded into session state
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from main import initialize_session_data
+    initialize_session_data()
+    
     observed_data = st.session_state["observed_data"]
     forecast_data = st.session_state["forecast_data"]
     time_data     = st.session_state["time_data"]
