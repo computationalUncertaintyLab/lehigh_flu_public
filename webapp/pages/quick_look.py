@@ -109,12 +109,15 @@ def show():
             video_key = "FLU CREW 10-7-25.mov"
             
             try:
-                # Get the video object from S3
-                response = s3.get_object(Bucket=bucket_name, Key=video_key)
-                video_bytes = response['Body'].read()
-
-                # Display the video in Streamlit
-                st.video(video_bytes)
+                # Generate a presigned URL (valid for 1 hour)
+                presigned_url = s3.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket_name, 'Key': video_key},
+                    ExpiresIn=3600  # URL expires in 1 hour
+                )
+                
+                # Display the video using the presigned URL
+                st.video(presigned_url)
 
             except NoCredentialsError:
                 st.error("AWS credentials not found. Please configure your credentials.")
