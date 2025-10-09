@@ -104,7 +104,7 @@ def show():
 
         cols = st.columns(1, gap="small",width=850)
         with cols[0]:
-            s3 = boto3.client('s3')
+            s3 = boto3.client('s3', region_name='us-east-1')
             bucket_name = "flucasts202526"
             video_key = "FLU CREW 10-7-25.mov"
             
@@ -115,6 +115,9 @@ def show():
                     Params={'Bucket': bucket_name, 'Key': video_key},
                     ExpiresIn=3600  # URL expires in 1 hour
                 )
+                
+                # Debug: show the URL
+                #st.text(f"Video URL: {presigned_url}")
                 
                 # Display the video using the presigned URL
                 st.video(presigned_url)
