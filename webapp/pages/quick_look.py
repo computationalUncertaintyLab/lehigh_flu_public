@@ -37,8 +37,11 @@ def display_todays_data(target,cols, observed_data,THISSEASON):
     data = observed_data[target]
     data = data.dropna()
     data = data.loc[data.season==THISSEASON]
-    data = data.iloc[:-1]
+    #data = data.iloc[:-1]
 
+    print("hellow")
+    print(data.iloc[-2:])
+    
     with cols[0].container(border=True, height="stretch"):
         most_recent_value = data["value"].values[-1]
         most_recent_N     = data["N"].values[-1]

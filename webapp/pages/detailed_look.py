@@ -38,7 +38,7 @@ def display_todays_data(target,cols, observed_data,THISSEASON):
     data = observed_data[target]
     data = data.dropna()
     data = data.loc[data.season==THISSEASON]
-    data = data.iloc[:-1]
+    #data = data.iloc[:-1]
 
     with cols[0].container(border=True, height="stretch"):
         most_recent_value = data["value"].values[-1]
@@ -90,6 +90,8 @@ def show():
     initialize_session_data()
     
     observed_data = st.session_state["observed_data"]
+    print(observed_data)
+    
     forecast_data = st.session_state["forecast_data"]
     time_data     = st.session_state["time_data"]
     THISSEASON    = st.session_state["SEASON"]
