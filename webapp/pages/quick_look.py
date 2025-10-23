@@ -109,7 +109,7 @@ def show():
         with cols[0]:
             s3 = boto3.client('s3', region_name='us-east-1')
             bucket_name = "flucasts202526"
-            video_key = "FLU CREW 10-14-25.mov"
+            video_key = "FLU CREW 10-21-25.mov"
             
             try:
                 # Generate a presigned URL (valid for 1 hour)
