@@ -109,7 +109,7 @@ def show():
         with cols[0]:
             s3 = boto3.client('s3', region_name='us-east-1')
             bucket_name = "flucasts202526"
-            video_key = "FLU CREW 11-11-25.mov"
+            video_key = "FLU CREW 11-18-25.mov"
             
             try:
                 # Generate a presigned URL (valid for 1 hour)
@@ -139,6 +139,8 @@ def show():
             st.markdown("## ")
 
             ili_observations = observed_data["ILI"]
+            print(ili_observations)
+            
             ili_most_recent  = ili_observations.loc[ (ili_observations.season==THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)]
             
             ili_past_weeks   = ili_observations.loc[ (ili_observations.season!=THISSEASON) &  (ili_observations.season_week == time_data["season_week"]-0)] 
@@ -147,7 +149,12 @@ def show():
                 alert0 = "LOW:"
                 alert1 = "In the past, no ILI diagnoses were made on this week."
             else:
-                perc = np.mean( ili_most_recent.value.values < ili_observations.value.values )
+                obs = ili_observations.value.values
+                obs = np.clip(obs[~np.isnan(obs)], 0, np.inf)
+
+                print( np.mean( ili_most_recent.value.values > obs) )
+
+                perc = np.mean( ili_most_recent.value.values > obs )
                 
                 if perc <0.50:
                     alert0 = "LOW:"
@@ -240,7 +247,8 @@ def show():
             with cols[0]:
                 ILI_forecasts = forecast_data["ILI"]["temporal"]
                 ILI_forecasts = ILI_forecasts.loc[ILI_forecasts.MMWR_WK.isin(time_data["next_four_weeks"])]
-                ILI_forecasts = ILI_forecasts.loc[ ILI_forecasts["percentile"].isin([0.10,0.50,0.90]) ]
+                # Include both 80% PI (0.10, 0.90) and 95% PI (0.025, 0.975)
+                ILI_forecasts = ILI_forecasts.loc[ ILI_forecasts["percentile"].isin([0.025, 0.10, 0.50, 0.90, 0.975]) ]
 
                 ILI_data      = observed_data["ILI"]
                 ILI_data      = ILI_data.loc[ILI_data.MMWR_WK.isin(time_data["next_four_weeks"])]
@@ -249,18 +257,18 @@ def show():
                 st.markdown("### ILI • 4-week panel")
 
                 # ---------------------------
-                # 2) FILTER to current season’s 4 weeks (40..43) and build PI table
+                # 2) FILTER to current season's 4 weeks and build PI table with both 80% and 95% PIs
                 # ---------------------------
                 TARGET_SEASON = "2025/26"
                 TARGET_SEMESTER = "Fall"
-                WEEKS = time_data["next_four_weeks"]#[40, 41, 42, 43]
+                WEEKS = time_data["next_four_weeks"]
 
                 fc4 = ILI_forecasts.rename(columns={"percentile_value_cases":"value"})
 
-                # Pivot percentiles 0.1, 0.5, 0.9 -> lo80, median, hi80
+                # Pivot percentiles - include both 80% and 95% PIs
                 fc_wide = (
                     fc4.pivot_table(index="MMWR_WK", columns="percentile", values="value")
-                       .rename(columns={0.1:"lo80", 0.5:"median", 0.9:"hi80"})
+                       .rename(columns={0.025:"lo95", 0.1:"lo80", 0.5:"median", 0.9:"hi80", 0.975:"hi95"})
                        .reset_index()
                 )
 
@@ -306,9 +314,9 @@ def show():
 
                 # Shared x-domain
                 xmin = min(0, float(min(hist_mean["hist_mean"].min() if len(hist_mean) else 0,
-                                        fc_plot["lo80"].min())))
+                                        fc_plot["lo95"].min())))
                 xmax = float(max(hist_mean["hist_mean"].max() if len(hist_mean) else 1,
-                                 fc_plot["hi80"].max()))
+                                 fc_plot["hi95"].max()))
                 pad = 0.06*(xmax - xmin) if xmax > xmin else 1.0
                 x_domain = [xmin - pad, xmax + pad]
 
@@ -326,15 +334,23 @@ def show():
                         hist_row["week_label"] = f"MMWR {mmwr_wk}"
 
                     # encodings (shared x scale)
-                    x_lo  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
-                    x2_hi = alt.X2("hi80:Q")
+                    x_lo95  = alt.X("lo95:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi95 = alt.X2("hi95:Q")
+                    x_lo80  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi80 = alt.X2("hi80:Q")
                     x_med = alt.X("median:Q",  title=None, scale=alt.Scale(domain=x_domain))
                     x_mu  = alt.X("hist_mean:Q", title="ILI cases", scale=alt.Scale(domain=x_domain))
                     y0    = alt.Y("y0:Q", axis=None)
 
-                    # layers
-                    pi_bar = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4).encode(
-                        x=x_lo, x2=x2_hi, y=y0,
+                    # layers - 95% PI (lighter, wider)
+                    pi_bar_95 = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.2, color="lightblue").encode(
+                        x=x_lo95, x2=x2_hi95, y=y0,
+                        tooltip=["week_label:N","lo95:Q","hi95:Q"]
+                    )
+                    
+                    # 80% PI (darker, narrower)
+                    pi_bar_80 = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4, color="blue").encode(
+                        x=x_lo80, x2=x2_hi80, y=y0,
                         tooltip=["week_label:N","lo80:Q","hi80:Q"]
                     )
 
@@ -349,7 +365,7 @@ def show():
                     )
 
                     # row label on the left as a subtitle
-                    return (pi_bar + hist_dot + med_dot).properties(
+                    return (pi_bar_95 + pi_bar_80 + hist_dot + med_dot).properties(
                         height=ROW_HEIGHT,
                         title=alt.TitleParams(text=row_lab, anchor="start", fontSize=12, dy=-6)
                     )
@@ -367,7 +383,8 @@ def show():
 
                 FLU_forecasts = forecast_data["Flu Cases"]["temporal"]
                 FLU_forecasts = FLU_forecasts.loc[FLU_forecasts.MMWR_WK.isin(time_data["next_four_weeks"])]
-                FLU_forecasts = FLU_forecasts.loc[ FLU_forecasts["percentile"].isin([0.10,0.50,0.90]) ]
+                # Include both 80% PI (0.10, 0.90) and 95% PI (0.025, 0.975)
+                FLU_forecasts = FLU_forecasts.loc[ FLU_forecasts["percentile"].isin([0.025, 0.10, 0.50, 0.90, 0.975]) ]
 
                 FLU_data      = observed_data["Flu Cases"]
                 FLU_data      = FLU_data.loc[FLU_data.MMWR_WK.isin(time_data["next_four_weeks"])]
@@ -376,18 +393,18 @@ def show():
                 st.markdown("### FLU • 4-week panel")
 
                 # ---------------------------
-                # 2) FILTER to current season’s 4 weeks (40..43) and build PI table
+                # 2) FILTER to current season's 4 weeks and build PI table with both 80% and 95% PIs
                 # ---------------------------
                 TARGET_SEASON = "2025/26"
                 TARGET_SEMESTER = "Fall"
-                WEEKS = time_data["next_four_weeks"]#[40, 41, 42, 43]
+                WEEKS = time_data["next_four_weeks"]
 
                 fc4 = FLU_forecasts.rename(columns={"percentile_value_cases":"value"})
 
-                # Pivot percentiles 0.1, 0.5, 0.9 -> lo80, median, hi80
+                # Pivot percentiles - include both 80% and 95% PIs
                 fc_wide = (
                     fc4.pivot_table(index="MMWR_WK", columns="percentile", values="value")
-                       .rename(columns={0.1:"lo80", 0.5:"median", 0.9:"hi80"})
+                       .rename(columns={0.025:"lo95", 0.1:"lo80", 0.5:"median", 0.9:"hi80", 0.975:"hi95"})
                        .reset_index()
                 )
 
@@ -433,9 +450,9 @@ def show():
 
                 # Shared x-domain
                 xmin = min(0, float(min(hist_mean["hist_mean"].min() if len(hist_mean) else 0,
-                                        fc_plot["lo80"].min())))
+                                        fc_plot["lo95"].min())))
                 xmax = float(max(hist_mean["hist_mean"].max() if len(hist_mean) else 1,
-                                 fc_plot["hi80"].max()))
+                                 fc_plot["hi95"].max()))
                 pad = 0.06*(xmax - xmin) if xmax > xmin else 1.0
                 x_domain = [xmin - pad, xmax + pad]
 
@@ -453,15 +470,23 @@ def show():
                         hist_row["week_label"] = f"MMWR {mmwr_wk}"
 
                     # encodings (shared x scale)
-                    x_lo  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
-                    x2_hi = alt.X2("hi80:Q")
+                    x_lo95  = alt.X("lo95:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi95 = alt.X2("hi95:Q")
+                    x_lo80  = alt.X("lo80:Q",    title=None, scale=alt.Scale(domain=x_domain))
+                    x2_hi80 = alt.X2("hi80:Q")
                     x_med = alt.X("median:Q",  title=None, scale=alt.Scale(domain=x_domain))
                     x_mu  = alt.X("hist_mean:Q", title="ILI cases", scale=alt.Scale(domain=x_domain))
                     y0    = alt.Y("y0:Q", axis=None)
 
-                    # layers
-                    pi_bar = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4).encode(
-                        x=x_lo, x2=x2_hi, y=y0,
+                    # layers - 95% PI (lighter, wider)
+                    pi_bar_95 = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.2, color="lightblue").encode(
+                        x=x_lo95, x2=x2_hi95, y=y0,
+                        tooltip=["week_label:N","lo95:Q","hi95:Q"]
+                    )
+                    
+                    # 80% PI (darker, narrower)
+                    pi_bar_80 = alt.Chart(fc_row).mark_bar(size=PI_THICKNESS, opacity=0.4, color="blue").encode(
+                        x=x_lo80, x2=x2_hi80, y=y0,
                         tooltip=["week_label:N","lo80:Q","hi80:Q"]
                     )
 
@@ -476,7 +501,7 @@ def show():
                     )
 
                     # row label on the left as a subtitle
-                    return (pi_bar + hist_dot + med_dot).properties(
+                    return (pi_bar_95 + pi_bar_80 + hist_dot + med_dot).properties(
                         height=ROW_HEIGHT,
                         title=alt.TitleParams(text=row_lab, anchor="start", fontSize=12, dy=-6)
                     )
