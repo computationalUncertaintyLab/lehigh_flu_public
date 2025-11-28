@@ -11,7 +11,7 @@ if __name__ == "__main__":
     flu = pd.read_csv("./analysis_data/weekly_data.csv")
     ili = pd.read_csv("./analysis_data/influenza_like_illness.csv")
 
-    flu_and_ili = flu.merge(ili, on = ["MMWR_YR","MMWR_WK"] )
+    flu_and_ili = flu.merge(ili, on = ["MMWR_YR","MMWR_WK","season_week", "start_date","end_date", "season", "semester"] )
     
 
     def collect_peak_week_from_single_season(subset):
@@ -19,7 +19,9 @@ if __name__ == "__main__":
 
     def collect_peak_cases_from_single_season(subset):
         pass#<--code goes here
- 
+
+    
+    
     peak_weeks__flu = flu_and_ili.groupby(["season"]).apply( collect_peak_week_from_single_season )
     peak_cases__flu = flu_and_ili.groupby(["season"]).apply( collect_peak_cases_from_single_season )
 
